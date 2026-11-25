@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>肌悩み別・成分相性＆コスパ計算ツール</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f6f8f7;
+      color: #1e293b;
+    }
+    .tab-active {
+      background-color: #ffffff;
+      color: #0f766e;
+      box-shadow: 0 1px 3px rgba(15, 118, 110, 0.12);
+    }
+    .card-selected {
+      border-color: #0d9488;
+      background-color: #f0fdfa;
+      box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2);
+    }
+    .concern-highlight {
+      border-color: #99f6e4;
+    }
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Toast notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden items-center gap-2 rounded-xl bg-slate-800 px-4 py-3 text-sm font-medium text-white shadow-lg transition-opacity duration-200">
+    <i data-lucide="info" class="h-4 w-4 text-teal-400"></i>
+    <span id="toast-msg"></span>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <div class="max-w-3xl mx-auto px-4 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="h-9 w-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0">
+          <i data-lucide="sparkles" class="h-5 w-5"></i>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">スキンケア成分相性＆コスパ計算</h1>
+          <p class="text-xs text-slate-500">手持ち・検討中のアイテムを1画面でチェック</p>
+        </div>
+      </div>
+
+      <!-- Main Tabs -->
+      <nav class="flex rounded-xl bg-slate-100 p-1 self-start sm:self-auto" aria-label="機能切り替え">
+        <button id="tab-btn-compat" type="button" class="tab-active flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs sm:text-sm font-semibold transition-all">
+          <i data-lucide="flask-conical" class="h-4 w-4"></i>
+          <span>成分相性チェック</span>
+        </button>
+        <button id="tab-btn-cost" type="button" class="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 transition-all">
+          <i data-lucide="calculator" class="h-4 w-4"></i>
+          <span>コスパ計算</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-3xl w-full mx-auto px-4 py-5 space-y-6">
+
+    <!-- ==================== TAB 1: 成分相性チェック ==================== -->
+    <section id="panel-compat" class="space-y-5">
+
+      <!-- Step 1: Concern Filter -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs font-bold">1</span>
+            <span>気になる肌悩みで絞り込む（任意）</span>
+          </h2>
+          <button id="reset-compat-btn" type="button" class="text-xs font-medium text-slate-500 hover:text-teal-700 underline">
+            選択をリセット
+          </button>
+        </div>
+        <div id="concern-filters" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <!-- Step 2: Ingredient Selection -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs font-bold">2</span>
+            <span>組み合わせたい成分を選ぶ（最大3つまで）</span>
+          </h2>
+          <span id="selected-count-badge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
+            2 / 3 選択中
+          </span>
+        </div>
+        <div id="ingredient-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+      </div>
+
+      <!-- Step 3: Compatibility Result -->
+      <div id="compat-result-container" class="space-y-4"></div>
+
+      <!-- Step 4: Affiliate / Revenue Slot (products.json対応) -->
+      <div id="affiliate-section" class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="shopping-bag" class="h-4 w-4 text-teal-600"></i>
+            <span>選んだ成分を取り入れやすいアイテム</span>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">PR（広告を含みます）</span>
+          </h3>
+          <span id="products-source-badge" class="text-[11px] font-medium px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+            サンプル表示中（products.json未配置）
+          </span>
+        </div>
+        <p id="products-note" class="text-xs text-slate-500">
+          同じフォルダに <code class="px-1 py-0.5 rounded bg-slate-100 text-slate-700">products.json</code> を配置すると、自動取得した商品情報・価格・アフィリエイトリンクがここに表示されます。
+        </p>
+        <div id="affiliate-cards" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: コスパ計算 ==================== -->
+    <section id="panel-cost" class="hidden space-y-5">
+
+      <!-- Calculator Input Card -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-4">
+        <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+          <i data-lucide="sliders-horizontal" class="h-4 w-4 text-teal-600"></i>
+          <span>アイテムの価格と使用期間を入力</span>
+        </h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="sm:col-span-2">
+            <label for="cost-name" class="block text-xs font-semibold text-slate-700 mb-1">アイテム名・メモ（比較リスト用）</label>
+            <input id="cost-name" type="text" value="ビタミンC美容液 A" placeholder="例：ビタミンC美容液 A"
+              class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20" />
+          </div>
+
+          <div>
+            <label for="cost-price" class="block text-xs font-semibold text-slate-700 mb-1">購入価格（税込・円）</label>
+            <div class="relative">
+              <input id="cost-price" type="number" min="1" step="10" value="2200"
+                class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 pr-10 text-sm font-semibold focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20" />
+              <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-medium">円</span>
+            </div>
+          </div>
+
+          <div>
+            <label for="cost-volume" class="block text-xs font-semibold text-slate-700 mb-1">内容量（ml または g）</label>
+            <div class="relative">
+              <input id="cost-volume" type="number" min="1" step="1" value="30"
+                class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 pr-12 text-sm font-semibold focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20" />
+              <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-medium">ml/g</span>
+            </div>
+          </div>
+
+          <div>
+            <label for="cost-days" class="block text-xs font-semibold text-slate-700 mb-1">使い切る目安日数（日）</label>
+            <div class="relative">
+              <input id="cost-days" type="number" min="1" step="1" value="60"
+                class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 pr-10 text-sm font-semibold focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20" />
+              <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-medium">日</span>
+            </div>
+            <div class="flex flex-wrap gap-1.5 mt-2">
+              <button type="button" data-days="30" class="preset-days rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">1ヶ月(30日)</button>
+              <button type="button" data-days="45" class="preset-days rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">1.5ヶ月(45日)</button>
+              <button type="button" data-days="60" class="preset-days rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">2ヶ月(60日)</button>
+              <button type="button" data-days="90" class="preset-days rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">3ヶ月(90日)</button>
+            </div>
+          </div>
+
+          <div>
+            <span class="block text-xs font-semibold text-slate-700 mb-1">1日の使用回数</span>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="freq-1" type="button" class="freq-btn rounded-xl border border-slate-200 py-2.5 text-xs font-semibold text-slate-600 transition-all">
+                1日1回（朝/夜）
+              </button>
+              <button id="freq-2" type="button" class="freq-btn rounded-xl border border-teal-500 bg-teal-50 py-2.5 text-xs font-semibold text-teal-700 transition-all">
+                1日2回（朝晩）
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cost Result Card -->
+      <div class="bg-gradient-to-br from-teal-700 to-emerald-800 rounded-2xl p-5 text-white shadow-md space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-teal-100">計算結果</span>
+          <span id="cost-metaphor" class="text-xs bg-white/15 px-2.5 py-1 rounded-full text-teal-50 font-medium"></span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="bg-white/10 rounded-xl p-3">
+            <div class="text-[11px] text-teal-100">1日あたり</div>
+            <div class="text-xl sm:text-2xl font-bold mt-0.5"><span id="res-per-day">37</span><span class="text-xs font-normal ml-0.5">円</span></div>
+          </div>
+          <div class="bg-white/10 rounded-xl p-3">
+            <div class="text-[11px] text-teal-100">1ヶ月（30日）</div>
+            <div class="text-xl sm:text-2xl font-bold mt-0.5"><span id="res-per-month">1,100</span><span class="text-xs font-normal ml-0.5">円</span></div>
+          </div>
+          <div class="bg-white/10 rounded-xl p-3">
+            <div class="text-[11px] text-teal-100">1回あたり</div>
+            <div class="text-xl sm:text-2xl font-bold mt-0.5"><span id="res-per-use">18</span><span class="text-xs font-normal ml-0.5">円</span></div>
+          </div>
+          <div class="bg-white/10 rounded-xl p-3">
+            <div class="text-[11px] text-teal-100">1ml(g)単価</div>
+            <div class="text-xl sm:text-2xl font-bold mt-0.5"><span id="res-per-ml">73.3</span><span class="text-xs font-normal ml-0.5">円</span></div>
+          </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button id="add-compare-btn" type="button" class="inline-flex items-center gap-1.5 rounded-xl bg-white text-teal-800 px-4 py-2 text-xs sm:text-sm font-bold shadow hover:bg-teal-50 transition-colors">
+            <i data-lucide="plus-circle" class="h-4 w-4"></i>
+            <span>比較リストに追加（最大4件）</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Comparison Table Card -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="scale" class="h-4 w-4 text-teal-600"></i>
+            <span>候補アイテムのコスパ比較</span>
+          </h3>
+          <span id="compare-count" class="text-xs text-slate-500">2 / 4 件</span>
+        </div>
+        <div id="compare-list" class="space-y-2.5"></div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Footer & Disclaimer -->
+  <footer class="max-w-3xl w-full mx-auto px-4 pb-8 pt-2">
+    <div class="rounded-xl bg-slate-100 border border-slate-200 p-3.5 text-[11px] leading-relaxed text-slate-600 space-y-1">
+      <p class="font-semibold text-slate-700 flex items-center gap-1.5">
+        <i data-lucide="shield-alert" class="h-3.5 w-3.5 text-slate-500"></i>
+        <span>ご利用にあたっての注意・免責事項</span>
+      </p>
+      <p>
+        本ツールの成分相性および使用タイミングは、一般的な化粧品成分の特性に基づく目安です。実際の使用順・朝夜の使用可否・併用可否は、各製品のパッケージや公式サイトの案内を優先してください。
+      </p>
+      <p>
+        肌質や体調により刺激を感じる場合があります。赤み・ヒリつきなどの異常が生じた場合は使用を中止し、必要に応じて皮膚科専門医へご相談ください。
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      // ==================== DATA ====================
+      const CONCERNS = [
+        { id: 'all', label: 'すべて表示' },
+        { id: 'pores', label: '毛穴・ざらつき' },
+        { id: 'dryness', label: '乾燥・バリア' },
+        { id: 'firmness', label: 'ハリ・乾燥小じわ' },
+        { id: 'dullness', label: 'くすみ・キメ' }
+      ];
+
+      const INGREDIENTS = [
+        {
+          id: 'vitc',
+          name: 'ビタミンC（誘導体含む）',
+          shortTag: '朝・夜どちらもOK',
+          concerns: ['pores', 'dullness', 'firmness'],
+          summary: '皮脂・毛穴のケアや、キメを整えて明るい印象の肌を目指す定番成分。',
+          timing: '朝・夜どちらも可（朝に使う場合は日焼け止めと併用）',
+          caution: '高濃度やピュアビタミンCは乾燥・刺激を感じる場合があります。'
+        },
+        {
+          id: 'retinol',
+          name: 'レチノール（ビタミンA）',
+          shortTag: '基本は夜推奨',
+          concerns: ['firmness', 'pores', 'dullness'],
+          summary: '肌のターンオーバーやハリ・弾力をサポートし、乾燥小じわを目立ちにくくする成分。',
+          timing: '夜の使用が基本（光や紫外線で分解されやすいため）',
+          caution: '使い始めは低濃度・週1〜2回から慣らすのが安心。妊娠・授乳中は使用を控えてください。'
+        },
+        {
+          id: 'niacinamide',
+          name: 'ナイアシンアミド（ビタミンB3）',
+          shortTag: '朝・夜どちらもOK',
+          concerns: ['firmness', 'dullness', 'dryness', 'pores'],
+          summary: '作用が穏やかで、乾燥小じわ・シミ予防・バリア機能サポートまで幅広く使える万能成分。',
+          timing: '朝・夜どちらも可（紫外線に強く安定性が高い）',
+          caution: '10%を超える高濃度製品は、人によって刺激や乾燥を感じる場合があります。'
+        },
+        {
+          id: 'ceramide',
+          name: 'セラミド',
+          shortTag: '守りの保湿・いつでもOK',
+          concerns: ['dryness'],
+          summary: '角質層の水分をつなぎ止め、外部刺激から肌を守るバリア機能の要となる保湿成分。',
+          timing: '朝・夜どちらも可',
+          caution: '他の攻めの成分と組み合わせても刺激になりにくく、土台づくりに最適です。'
+        },
+        {
+          id: 'peeling',
+          name: '角質ケア（AHA / BHA等）',
+          shortTag: '夜・週数回が目安',
+          concerns: ['pores', 'dullness'],
+          summary: 'サリチル酸やマンデル酸など、古い角質によるごわつき・ざらつきをなめらかに整える成分。',
+          timing: '夜（または製品案内に従い週1〜数回）',
+          caution: 'ケア後は乾燥しやすいため、十分な保湿と日中の紫外線対策をセットで行います。'
+        },
+        {
+          id: 'hyaluronic',
+          name: 'ヒアルロン酸',
+          shortTag: 'うるおい補給・いつでもOK',
+          concerns: ['dryness', 'firmness'],
+          summary: '高い水分保持力で肌にうるおいを与え、みずみずしい状態を保つ定番の保湿成分。',
+          timing: '朝・夜どちらも可',
+          caution: '単体では蒸発しやすいため、乳液やクリームでフタをするとより効果的です。'
+        }
+      ];
+
+      // Pairwise rules (alphabetical key: id1_id2)
+      const PAIR_RULES = {
+        'niacinamide_retinol': {
+          level: 'best',
+          badge: '◎ 相乗効果・おすすめ',
+          title: 'ハリケアを補い合い、刺激も和らぐ好相性ペア',
+          detail: '水溶性のナイアシンアミドを先に塗り、後からレチノールを重ねることで、肌への刺激を和らげながらハリ・キメのケアができます。',
+          routine: '【夜】洗顔 → 化粧水 → ナイアシンアミド → レチノール → 保湿クリーム'
+        },
+        'retinol_vitc': {
+          level: 'split',
+          badge: '△ 朝・夜で分けるのがおすすめ',
+          title: 'どちらも攻めの成分のため、時間帯を分けると安心',
+          detail: '同時に重ねると刺激や乾燥を感じやすくなることがあります。朝にビタミンC、夜にレチノールと分けることで、それぞれの良さを無理なく活かせます。',
+          routine: '【朝】ビタミンC → 保湿 → 日焼け止め ／ 【夜】保湿 → レチノール'
+        },
+        'peeling_retinol': {
+          level: 'caution',
+          badge: '△ 同時使用は避け、日を分ける',
+          title: '角質への負担が重なりやすいため注意が必要',
+          detail: 'どちらも角質層に強く働きかける成分です。同じ日に重ね塗りすると赤みや皮むけ、乾燥につながりやすいため、曜日を分けて使うのが無難です。',
+          routine: '【例】月・木は角質ケア ／ 火・金はレチノール（間に保湿だけの日を挟む）'
+        },
+        'peeling_vitc': {
+          level: 'caution',
+          badge: '△ 刺激に注意（朝夜・日を分ける）',
+          title: '敏感な時はピリつきやすいため様子を見ながら',
+          detail: '酸性の角質ケア成分とビタミンC（特に高濃度）を同時に使うと刺激を感じやすい場合があります。初めてなら朝と夜、または日を分けるのが安心です。',
+          routine: '【朝】ビタミンC → 日焼け止め ／ 【夜】角質ケア → しっかり保湿'
+        },
+        'niacinamide_vitc': {
+          level: 'good',
+          badge: '○ 併用OK（製品の案内を優先）',
+          title: '一般的な化粧品では併用可能な組み合わせ',
+          detail: 'どちらもキメや透明感のケアに役立ちます。一般的にはビタミンC→ナイアシンアミドの順で使われますが、刺激が気になる時は朝と夜に分けても問題ありません。',
+          routine: '【朝・夜】ビタミンC → ナイアシンアミド → 乳液・クリーム'
+        }
+      };
+
+      // products.json未配置時のフォールバック用サンプルデータ（楽天API取得形式に準拠）
+      const FALLBACK_PRODUCTS = {
+        vitc: [{
+          itemName: 'ビタミンC誘導体 美容液（サンプル枠）',
+          itemPrice: 2200,
+          shopName: '公式ショップ例',
+          reviewAverage: 4.5,
+          reviewCount: 120,
+          imageUrl: '',
+          affiliateUrl: '',
+          tag: 'ビタミンC配合',
+          isDemo: true
+        }],
+        retinol: [{
+          itemName: '低刺激レチノール クリーム（サンプル枠）',
+          itemPrice: 2980,
+          shopName: '公式ショップ例',
+          reviewAverage: 4.6,
+          reviewCount: 85,
+          imageUrl: '',
+          affiliateUrl: '',
+          tag: 'レチノール配合',
+          isDemo: true
+        }],
+        niacinamide: [{
+          itemName: 'ナイアシンアミド 美容液（サンプル枠）',
+          itemPrice: 1540,
+          shopName: '公式ショップ例',
+          reviewAverage: 4.4,
+          reviewCount: 210,
+          imageUrl: '',
+          affiliateUrl: '',
+          tag: 'ナイアシンアミド配合',
+          isDemo: true
+        }],
+        ceramide: [{
+          itemName: 'ヒト型セラミド 保湿乳液（サンプル枠）',
+          itemPrice: 1870,
+          shopName: '公式ショップ例',
+          reviewAverage: 4.7,
+          reviewCount: 340,
+          imageUrl: '',
+          affiliateUrl: '',
+          tag: 'セラミド配合',
+          isDemo: true
+        }],
+        peeling: [{
+          itemName: 'マイルド角質ケア 導入液（サンプル枠）',
+          itemPrice: 1980,
+          shopName: '公式ショップ例',
+          reviewAverage: 4.3,
+          reviewCount: 64,
+          imageUrl: '',
+          affiliateUrl: '',
+          tag: 'AHA/BHA配合',
+          isDemo: true
+        }],
+        hyaluronic: [{
+          itemName: '高保湿ヒアルロン酸 セラム（サンプル枠）',
+          itemPrice: 1320,
+          shopName: '公式ショップ例',
+          reviewAverage: 4.5,
+          reviewCount: 150,
+          imageUrl: '',
+          affiliateUrl: '',
+          tag: 'ヒアルロン酸配合',
+          isDemo: true
+        }]
+      };
+
+      // ==================== STATE ====================
+      let state = {
+        activeTab: 'compat',
+        activeConcern: 'all',
+        selectedIngredients: ['retinol', 'niacinamide'],
+        freqPerDay: 2,
+        compareItems: [
+          { id: 1, name: 'ビタミンC美容液 A（サンプル）', price: 2200, volume: 30, days: 60, freq: 2 },
+          { id: 2, name: 'ナイアシンアミド化粧水 B（サンプル）', price: 1540, volume: 150, days: 75, freq: 2 }
+        ],
+        nextCompareId: 3,
+        productsData: FALLBACK_PRODUCTS,
+        productsSource: 'demo',
+        productsUpdatedAt: null
+      };
+
+      // ==================== HELPERS ====================
+      function escapeHtml(str) {
+        return String(str ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function showToast(msg) {
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toast-msg');
+        toastMsg.textContent = msg;
+        toast.classList.remove('hidden');
+        toast.classList.add('flex');
+        clearTimeout(window._toastTimer);
+        window._toastTimer = setTimeout(() => {
+          toast.classList.add('hidden');
+          toast.classList.remove('flex');
+        }, 2600);
+      }
+
+      function refreshIcons() {
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+          window.lucide.createIcons();
+        }
+      }
+
+      function getPairKey(a, b) {
+        return [a, b].sort().join('_');
+      }
+
+      // ==================== EXTERNAL PRODUCTS.JSON LOADER ====================
+      async function loadExternalProducts() {
+        try {
+          const res = await fetch('./products.json', { cache: 'no-store' });
+          if (!res.ok) return;
+          const json = await res.json();
+          if (json && json.items && typeof json.items === 'object') {
+            state.productsData = json.items;
+            state.productsSource = 'json';
+            state.productsUpdatedAt = json.updatedAt || null;
+            renderAffiliateCards();
+            refreshIcons();
+          }
+        } catch (_err) {
+          // products.json未配置・ローカルプレビュー時は静かにフォールバックを維持
+        }
+      }
+
+      // ==================== TAB SWITCHING ====================
+      const tabCompatBtn = document.getElementById('tab-btn-compat');
+      const tabCostBtn = document.getElementById('tab-btn-cost');
+      const panelCompat = document.getElementById('panel-compat');
+      const panelCost = document.getElementById('panel-cost');
+
+      function switchTab(tab) {
+        state.activeTab = tab;
+        if (tab === 'compat') {
+          tabCompatBtn.classList.add('tab-active');
+          tabCompatBtn.classList.remove('text-slate-600');
+          tabCostBtn.classList.remove('tab-active');
+          tabCostBtn.classList.add('text-slate-600');
+          panelCompat.classList.remove('hidden');
+          panelCost.classList.add('hidden');
+        } else {
+          tabCostBtn.classList.add('tab-active');
+          tabCostBtn.classList.remove('text-slate-600');
+          tabCompatBtn.classList.remove('tab-active');
+          tabCompatBtn.classList.add('text-slate-600');
+          panelCost.classList.remove('hidden');
+          panelCompat.classList.add('hidden');
+        }
+      }
+
+      tabCompatBtn.addEventListener('click', () => switchTab('compat'));
+      tabCostBtn.addEventListener('click', () => switchTab('cost'));
+
+      // ==================== COMPATIBILITY RENDER ====================
+      function renderConcerns() {
+        const container = document.getElementById('concern-filters');
+        container.innerHTML = CONCERNS.map(c => {
+          const active = state.activeConcern === c.id;
+          return `<button type="button" data-concern="${c.id}" class="concern-btn rounded-full px-3.5 py-1.5 text-xs font-semibold border transition-all ${
+            active
+              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-teal-50 hover:text-teal-700'
+          }">${c.label}</button>`;
+        }).join('');
+      }
+
+      function renderIngredients() {
+        const grid = document.getElementById('ingredient-grid');
+        const badge = document.getElementById('selected-count-badge');
+        badge.textContent = `${state.selectedIngredients.length} / 3 選択中`;
+
+        grid.innerHTML = INGREDIENTS.map(item => {
+          const isSelected = state.selectedIngredients.includes(item.id);
+          const matchesConcern = state.activeConcern === 'all' || item.concerns.includes(state.activeConcern);
+          const opacityClass = matchesConcern ? 'opacity-100' : 'opacity-45';
+          const selectedClass = isSelected ? 'card-selected' : 'border-slate-200 bg-white hover:border-teal-300';
+
+          return `
+            <button type="button" data-ing="${item.id}" class="ing-card text-left rounded-xl border p-3.5 transition-all ${selectedClass} ${opacityClass}">
+              <div class="flex items-start justify-between gap-2">
+                <div class="font-bold text-sm text-slate-900">${item.name}</div>
+                <span class="shrink-0 h-5 w-5 rounded-full flex items-center justify-center border ${
+                  isSelected ? 'bg-teal-600 border-teal-600 text-white' : 'border-slate-300 bg-white'
+                }">
+                  ${isSelected ? '<i data-lucide="check" class="h-3.5 w-3.5"></i>' : ''}
+                </span>
+              </div>
+              <div class="mt-1 inline-block text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">${item.shortTag}</div>
+              <p class="mt-2 text-xs text-slate-600 leading-relaxed">${item.summary}</p>
+            </button>
+          `;
+        }).join('');
+      }
+
+      function evaluateCombination(ids) {
+        if (ids.length === 0) {
+          return null;
+        }
+        if (ids.length === 1) {
+          const ing = INGREDIENTS.find(i => i.id === ids[0]);
+          return {
+            badgeClass: 'bg-teal-100 text-teal-800 border-teal-200',
+            badgeText: '単体チェック',
+            title: `${ing.name} の使い方ポイント`,
+            detail: `${ing.summary} もう1つ成分を選ぶと、組み合わせの相性や塗る順番を判定できます。`,
+            routine: `【推奨タイミング】${ing.timing}`,
+            cautions: [ing.caution]
+          };
+        }
+
+        const pairs = [];
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            const key = getPairKey(ids[i], ids[j]);
+            if (PAIR_RULES[key]) {
+              pairs.push(PAIR_RULES[key]);
+            }
+          }
+        }
+
+        const hasBarrierHelper = ids.includes('ceramide') || ids.includes('hyaluronic');
+        const cautions = ids.map(id => {
+          const found = INGREDIENTS.find(x => x.id === id);
+          return `${found.name}：${found.caution}`;
+        });
+
+        const cautionPair = pairs.find(p => p.level === 'caution');
+        if (cautionPair) {
+          return {
+            badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
+            badgeText: cautionPair.badge,
+            title: cautionPair.title,
+            detail: cautionPair.detail + (hasBarrierHelper ? ' 保湿成分（セラミド/ヒアルロン酸）が含まれているため、刺激対策の土台として心強い構成です。' : ''),
+            routine: cautionPair.routine,
+            cautions
+          };
+        }
+
+        const splitPair = pairs.find(p => p.level === 'split');
+        if (splitPair) {
+          return {
+            badgeClass: 'bg-sky-100 text-sky-800 border-sky-200',
+            badgeText: splitPair.badge,
+            title: splitPair.title,
+            detail: splitPair.detail + (hasBarrierHelper ? ' 選んだ保湿成分を朝・夜どちらのケアにも挟むと安定しやすくなります。' : ''),
+            routine: splitPair.routine,
+            cautions
+          };
+        }
+
+        const bestPair = pairs.find(p => p.level === 'best');
+        if (bestPair) {
+          return {
+            badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+            badgeText: bestPair.badge,
+            title: bestPair.title,
+            detail: bestPair.detail,
+            routine: bestPair.routine,
+            cautions
+          };
+        }
+
+        const goodPair = pairs.find(p => p.level === 'good');
+        if (goodPair) {
+          return {
+            badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+            badgeText: goodPair.badge,
+            title: goodPair.title,
+            detail: goodPair.detail,
+            routine: goodPair.routine,
+            cautions
+          };
+        }
+
+        return {
+          badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+          badgeText: '◎ 併用OK・保湿サポート',
+          title: '守りの保湿と攻めのケアのバランスが良い組み合わせ',
+          detail: '保湿成分が肌のうるおいとバリア機能を支えるため、他の美容成分とも無理なく併用しやすい組み合わせです。',
+          routine: '【基本の順番】水溶性の化粧水・美容液 → 油分を含むクリーム・乳液でフタをする',
+          cautions
+        };
+      }
+
+      function renderCompatResult() {
+        const container = document.getElementById('compat-result-container');
+        const evalRes = evaluateCombination(state.selectedIngredients);
+
+        if (!evalRes) {
+          container.innerHTML = `
+            <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+              上のリストから成分を1〜3つタップすると、相性判定とおすすめの使い方が出ます。
+            </div>
+          `;
+        } else {
+          container.innerHTML = `
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-xs font-bold px-3 py-1 rounded-full border ${evalRes.badgeClass}">${evalRes.badgeText}</span>
+                <span class="text-xs text-slate-400">選択中の成分：${state.selectedIngredients.length}件</span>
+              </div>
+              <div>
+                <h3 class="text-base sm:text-lg font-bold text-slate-900">${evalRes.title}</h3>
+                <p class="mt-1.5 text-sm text-slate-600 leading-relaxed">${evalRes.detail}</p>
+              </div>
+              <div class="rounded-xl bg-teal-50/70 border border-teal-100 p-3.5">
+                <div class="text-xs font-bold text-teal-800 mb-1 flex items-center gap-1.5">
+                  <i data-lucide="clock" class="h-3.5 w-3.5"></i>
+                  <span>おすすめの使い方・順番の目安</span>
+                </div>
+                <p class="text-xs sm:text-sm font-medium text-teal-950">${evalRes.routine}</p>
+              </div>
+              <div class="space-y-1.5">
+                <div class="text-xs font-bold text-slate-700">各成分のワンポイント注意</div>
+                <ul class="space-y-1 text-xs text-slate-600 list-disc pl-4">
+                  ${evalRes.cautions.map(c => `<li>${c}</li>`).join('')}
+                </ul>
+              </div>
+            </div>
+          `;
+        }
+
+        renderAffiliateCards();
+        refreshIcons();
+      }
+
+      function renderAffiliateCards() {
+        const container = document.getElementById('affiliate-cards');
+        const badgeEl = document.getElementById('products-source-badge');
+        const noteEl = document.getElementById('products-note');
+
+        if (state.productsSource === 'json') {
+          badgeEl.className = 'text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200';
+          badgeEl.textContent = state.productsUpdatedAt
+            ? `products.json 連携中（更新: ${state.productsUpdatedAt}）`
+            : 'products.json 連携中';
+          noteEl.textContent = '表示価格はデータ取得時点の目安です。最新の価格・在庫・送料はリンク先のショップページでご確認ください。';
+        } else {
+          badgeEl.className = 'text-[11px] font-medium px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200';
+          badgeEl.textContent = 'サンプル表示中（products.json未配置）';
+          noteEl.innerHTML = '同じフォルダに <code class="px-1 py-0.5 rounded bg-slate-100 text-slate-700">products.json</code> を配置すると、自動取得した商品情報・価格・アフィリエイトリンクがここに表示されます。';
+        }
+
+        const ids = state.selectedIngredients.length > 0 ? state.selectedIngredients : ['vitc', 'niacinamide'];
+        const cards = [];
+
+        ids.forEach(id => {
+          const list = state.productsData[id];
+          if (Array.isArray(list) && list.length > 0) {
+            const ing = INGREDIENTS.find(x => x.id === id);
+            list.slice(0, 2).forEach(prod => {
+              cards.push({ ...prod, ingName: ing ? ing.name : id });
+            });
+          }
+        });
+
+        const displayCards = cards.slice(0, 4);
+        if (displayCards.length === 0) {
+          container.innerHTML = '<p class="text-xs text-slate-400 col-span-2 py-2">該当する商品データが見つかりませんでした。</p>';
+          return;
+        }
+
+        container.innerHTML = displayCards.map(prod => {
+          const name = escapeHtml(prod.itemName || '商品名未設定');
+          const shop = escapeHtml(prod.shopName || '');
+          const tag = escapeHtml(prod.tag || prod.ingName || '');
+          const priceNum = Number(prod.itemPrice);
+          const priceText = Number.isFinite(priceNum) && priceNum > 0 ? `${priceNum.toLocaleString()}円` : '価格未設定';
+          const reviewAvg = Number(prod.reviewAverage);
+          const reviewCnt = Number(prod.reviewCount);
+          const reviewHtml = (Number.isFinite(reviewAvg) && reviewAvg > 0)
+            ? `<span class="inline-flex items-center gap-1 text-[11px] text-amber-600 font-semibold"><i data-lucide="star" class="h-3 w-3 fill-amber-400 text-amber-400"></i>${reviewAvg.toFixed(1)}${Number.isFinite(reviewCnt) && reviewCnt > 0 ? ` (${reviewCnt}件)` : ''}</span>`
+            : '';
+
+          const safeImg = (typeof prod.imageUrl === 'string' && prod.imageUrl.startsWith('https://')) ? escapeHtml(prod.imageUrl) : '';
+          const safeUrl = (typeof prod.affiliateUrl === 'string' && prod.affiliateUrl.startsWith('https://')) ? escapeHtml(prod.affiliateUrl) : '';
+
+          const thumbHtml = safeImg
+            ? `<img src="${safeImg}" alt="${name}" class="w-16 h-16 rounded-lg object-cover border border-slate-200 shrink-0 bg-white" onerror="this.style.display='none'" />`
+            : `<div class="w-16 h-16 rounded-lg border border-slate-200 bg-white flex items-center justify-center shrink-0 text-teal-600"><i data-lucide="package" class="h-6 w-6"></i></div>`;
+
+          const actionHtml = safeUrl
+            ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-teal-600 py-2 text-xs font-bold text-white hover:bg-teal-700 transition-colors"><span>詳細・購入ページを見る</span><i data-lucide="external-link" class="h-3.5 w-3.5"></i></a>`
+            : `<button type="button" class="demo-aff-btn w-full rounded-lg border border-teal-600 bg-white py-2 text-xs font-bold text-teal-700 hover:bg-teal-50 transition-colors">詳細・価格を見る（リンク設定枠）</button>`;
+
+          return `
+            <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 flex flex-col justify-between gap-3">
+              <div class="flex gap-3">
+                ${thumbHtml}
+                <div class="min-w-0 flex-1">
+                  <span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-teal-100 text-teal-800">${tag}</span>
+                  <h4 class="text-xs sm:text-sm font-bold text-slate-800 mt-1 line-clamp-2">${name}</h4>
+                  <div class="flex flex-wrap items-center gap-2 mt-1">
+                    <span class="text-sm font-bold text-teal-700">${priceText}</span>
+                    ${reviewHtml}
+                  </div>
+                  ${shop ? `<div class="text-[11px] text-slate-400 truncate mt-0.5">${shop}</div>` : ''}
+                </div>
+              </div>
+              ${actionHtml}
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Event delegation for compatibility tab
+      document.getElementById('concern-filters').addEventListener('click', (e) => {
+        const btn = e.target.closest('.concern-btn');
+        if (!btn) return;
+        state.activeConcern = btn.dataset.concern;
+        renderConcerns();
+        renderIngredients();
+        refreshIcons();
+      });
+
+      document.getElementById('ingredient-grid').addEventListener('click', (e) => {
+        const card = e.target.closest('.ing-card');
+        if (!card) return;
+        const id = card.dataset.ing;
+        const idx = state.selectedIngredients.indexOf(id);
+        if (idx >= 0) {
+          state.selectedIngredients.splice(idx, 1);
+        } else {
+          if (state.selectedIngredients.length >= 3) {
+            showToast('成分は最大3つまで選択できます。どれかを外してから選んでください。');
+            return;
+          }
+          state.selectedIngredients.push(id);
+        }
+        renderIngredients();
+        renderCompatResult();
+      });
+
+      document.getElementById('reset-compat-btn').addEventListener('click', () => {
+        state.activeConcern = 'all';
+        state.selectedIngredients = [];
+        renderConcerns();
+        renderIngredients();
+        renderCompatResult();
+      });
+
+      document.getElementById('affiliate-cards').addEventListener('click', (e) => {
+        if (e.target.closest('.demo-aff-btn')) {
+          showToast('products.jsonを配置すると、実際の楽天アフィリエイトリンクへ遷移します。');
+        }
+      });
+
+      // ==================== COST CALCULATOR ====================
+      const priceInput = document.getElementById('cost-price');
+      const volumeInput = document.getElementById('cost-volume');
+      const daysInput = document.getElementById('cost-days');
+      const nameInput = document.getElementById('cost-name');
+
+      function calcMetrics(price, volume, days, freq) {
+        const safePrice = Math.max(0, Number(price) || 0);
+        const safeVol = Math.max(1, Number(volume) || 1);
+        const safeDays = Math.max(1, Number(days) || 1);
+        const safeFreq = Math.max(1, Number(freq) || 1);
+
+        const perDay = safePrice / safeDays;
+        const perMonth = perDay * 30;
+        const perUse = safePrice / (safeDays * safeFreq);
+        const perMl = safePrice / safeVol;
+
+        return { perDay, perMonth, perUse, perMl };
+      }
+
+      function getMetaphor(perDay) {
+        if (perDay <= 50) return '駄菓子・チロルチョコ数個レベル';
+        if (perDay <= 120) return 'ペットボトル1本よりお得';
+        if (perDay <= 200) return 'コンビニコーヒー1杯くらい';
+        return 'ちょっと贅沢なご褒美ケア';
+      }
+
+      function updateCostDisplay() {
+        const price = Number(priceInput.value);
+        const volume = Number(volumeInput.value);
+        const days = Number(daysInput.value);
+
+        if (price <= 0 || volume <= 0 || days <= 0) {
+          document.getElementById('res-per-day').textContent = '-';
+          document.getElementById('res-per-month').textContent = '-';
+          document.getElementById('res-per-use').textContent = '-';
+          document.getElementById('res-per-ml').textContent = '-';
+          document.getElementById('cost-metaphor').textContent = '1以上の数値を入力してください';
+          return;
+        }
+
+        const m = calcMetrics(price, volume, days, state.freqPerDay);
+        document.getElementById('res-per-day').textContent = Math.round(m.perDay).toLocaleString();
+        document.getElementById('res-per-month').textContent = Math.round(m.perMonth).toLocaleString();
+        document.getElementById('res-per-use').textContent = Math.round(m.perUse).toLocaleString();
+        document.getElementById('res-per-ml').textContent = m.perMl.toFixed(1);
+        document.getElementById('cost-metaphor').textContent = getMetaphor(m.perDay);
+      }
+
+      function renderCompareList() {
+        const container = document.getElementById('compare-list');
+        const countEl = document.getElementById('compare-count');
+        countEl.textContent = `${state.compareItems.length} / 4 件`;
+
+        if (state.compareItems.length === 0) {
+          container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">比較リストは空です。上の計算結果から追加できます。</p>';
+          return;
+        }
+
+        let minPerDay = Infinity;
+        state.compareItems.forEach(item => {
+          const m = calcMetrics(item.price, item.volume, item.days, item.freq);
+          if (m.perDay < minPerDay) minPerDay = m.perDay;
+        });
+
+        container.innerHTML = state.compareItems.map(item => {
+          const m = calcMetrics(item.price, item.volume, item.days, item.freq);
+          const isBest = state.compareItems.length > 1 && Math.abs(m.perDay - minPerDay) < 0.01;
+          return `
+            <div class="rounded-xl border ${isBest ? 'border-teal-400 bg-teal-50/40' : 'border-slate-200 bg-slate-50/50'} p-3 flex flex-wrap items-center justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-sm text-slate-800 truncate">${escapeHtml(item.name)}</span>
+                  ${isBest ? '<span class="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-600 text-white">1番お得</span>' : ''}
+                </div>
+                <div class="text-xs text-slate-500 mt-0.5">
+                  ${item.price.toLocaleString()}円 / ${item.volume}ml(g) / ${item.days}日（1日${item.freq}回）
+                </div>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="text-right">
+                  <div class="text-xs text-slate-500">1日あたり</div>
+                  <div class="text-sm font-bold text-teal-700">約${Math.round(m.perDay).toLocaleString()}円</div>
+                </div>
+                <button type="button" data-remove-id="${item.id}" class="remove-compare-btn p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" aria-label="削除">
+                  <i data-lucide="trash-2" class="h-4 w-4"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+        refreshIcons();
+      }
+
+      [priceInput, volumeInput, daysInput].forEach(el => {
+        el.addEventListener('input', updateCostDisplay);
+      });
+
+      document.querySelectorAll('.preset-days').forEach(btn => {
+        btn.addEventListener('click', () => {
+          daysInput.value = btn.dataset.days;
+          updateCostDisplay();
+        });
+      });
+
+      const freq1Btn = document.getElementById('freq-1');
+      const freq2Btn = document.getElementById('freq-2');
+      function setFreq(val) {
+        state.freqPerDay = val;
+        if (val === 1) {
+          freq1Btn.className = 'freq-btn rounded-xl border border-teal-500 bg-teal-50 py-2.5 text-xs font-semibold text-teal-700 transition-all';
+          freq2Btn.className = 'freq-btn rounded-xl border border-slate-200 py-2.5 text-xs font-semibold text-slate-600 transition-all';
+        } else {
+          freq2Btn.className = 'freq-btn rounded-xl border border-teal-500 bg-teal-50 py-2.5 text-xs font-semibold text-teal-700 transition-all';
+          freq1Btn.className = 'freq-btn rounded-xl border border-slate-200 py-2.5 text-xs font-semibold text-slate-600 transition-all';
+        }
+        updateCostDisplay();
+      }
+      freq1Btn.addEventListener('click', () => setFreq(1));
+      freq2Btn.addEventListener('click', () => setFreq(2));
+
+      document.getElementById('add-compare-btn').addEventListener('click', () => {
+        if (state.compareItems.length >= 4) {
+          showToast('比較リストは最大4件までです。不要なものを削除してから追加してください。');
+          return;
+        }
+        const price = Number(priceInput.value);
+        const volume = Number(volumeInput.value);
+        const days = Number(daysInput.value);
+        if (price <= 0 || volume <= 0 || days <= 0) {
+          showToast('価格・内容量・日数は1以上の数値を入力してください。');
+          return;
+        }
+        const itemName = (nameInput.value || '').trim() || `アイテム ${state.nextCompareId}`;
+        state.compareItems.push({
+          id: state.nextCompareId++,
+          name: itemName,
+          price,
+          volume,
+          days,
+          freq: state.freqPerDay
+        });
+        renderCompareList();
+        showToast('比較リストに追加しました');
+      });
+
+      document.getElementById('compare-list').addEventListener('click', (e) => {
+        const btn = e.target.closest('.remove-compare-btn');
+        if (!btn) return;
+        const id = Number(btn.dataset.removeId);
+        state.compareItems = state.compareItems.filter(item => item.id !== id);
+        renderCompareList();
+      });
+
+      // ==================== INIT ====================
+      renderConcerns();
+      renderIngredients();
+      renderCompatResult();
+      updateCostDisplay();
+      renderCompareList();
+      refreshIcons();
+      loadExternalProducts();
+    })();
+  </script>
+</body>
+</html>
