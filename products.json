@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-25 11:05",
+  "updatedAt": "2026-11-25 11:58",
   "items": {
     "vitc": [
       {
@@ -113,6 +113,17 @@
     ],
     "hyaluronic": [
       {
+        "itemName": "香りに包まれる、うるおい肌習慣スキンケア【Laeisis】",
+        "itemPrice": 0,
+        "shopName": "Laeisis 公式（PR）",
+        "reviewAverage": 0,
+        "reviewCount": 0,
+        "imageUrl": "",
+        "affiliateUrl": "https://px.a8.net/svt/ejp?a8mat=4BGTLL+DFFZZM+5YC4+5YJRM",
+        "beaconUrl": "https://www16.a8.net/0.gif?a8mat=4BGTLL+DFFZZM+5YC4+5YJRM",
+        "tag": "うるおい・保湿ケア"
+      },
+      {
         "itemName": "肌ラボ 極潤プレミアムヒアルロン液 170ml",
         "itemPrice": 990,
         "shopName": "ロート製薬公式オンライン",
@@ -121,18 +132,7 @@
         "imageUrl": "https://www.shop.rohto.co.jp/on/demandware.static/-/Sites-all-master-catalog/default/dwca9cdd6a/images/product/43_hadalabo/167012_1.jpg",
         "affiliateUrl": "https://www.shop.rohto.co.jp/category/skincare/hadalabo/gokujyun-premium/167012.html",
         "tag": "ヒアルロン酸配合"
-      },
-      {
-        "itemName": "肌ラボ 極潤ヒアルロン液 ライトタイプ 170ml",
-        "itemPrice": 814,
-        "shopName": "ロート製薬（@cosme 商品情報）",
-        "reviewAverage": 0,
-        "reviewCount": 0,
-        "imageUrl": "https://fitter.cosme.net/media/product/10195/skuimg-d_12893_xl.jpg?target=360x360&size=trimIfLarge",
-        "affiliateUrl": "https://www.cosme.net/products/10195292/",
-        "tag": "ヒアルロン酸配合"
       }
     ]
   }
 }
-
